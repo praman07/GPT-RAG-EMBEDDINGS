@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import env from '../config/env.js';
 import authRouter from '../routes/auth.routes.js';
 import errorMiddleware from '../middleware/error.middleware.js';
+import conversationRouter from '../routes/conversation.routes.js';
+
 
 const app = express();
 
@@ -26,6 +28,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/conversation', conversationRouter);
 
 app.use(errorMiddleware);
 
