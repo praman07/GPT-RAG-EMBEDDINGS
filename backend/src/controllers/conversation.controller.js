@@ -3,6 +3,61 @@ import MessageModel from "../models/message.model.js";
 import { generateTitle, getStream } from "../services/ai.service.js";
 
 
+export const getConversations = async (req, res, next) => {
+    try {
+        const conversations = await ConversationModel.find({ user: req.user.id })
+            .sort({ updatedAt: -1 })
+            .lean();
+
+        if (!conversations.length) {
+            return res.status(200).json({
+                success: true,
+                conversations: [],
+            });
+        }
+
+        const conversationIds = conversations.map((conversation) => conversation._id);
+
+        const messages = await MessageModel.find({
+            conversation: { $in: conversationIds },
+        })
+            .sort({ createdAt: 1 })
+            .lean();
+
+        const messagesByConversation = new Map();
+
+        for (const message of messages) {
+            const key = message.conversation.toString();
+            if (!messagesByConversation.has(key)) {
+                messagesByConversation.set(key, []);
+            }
+
+            messagesByConversation.get(key).push({
+                id: message._id,
+                author: message.author,
+                content: message.content,
+                createdAt: message.createdAt,
+            });
+        }
+
+        const responseConversations = conversations.map((conversation) => ({
+            id: conversation._id,
+            title: conversation.title,
+            createdAt: conversation.createdAt,
+            updatedAt: conversation.updatedAt,
+            messages: messagesByConversation.get(conversation._id.toString()) || [],
+        }));
+
+        return res.status(200).json({
+            success: true,
+            conversations: responseConversations,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 export const handleMessage = async (req, res) => {
     const { message, conversationId } = req.body;
 
@@ -16,7 +71,17 @@ export const handleMessage = async (req, res) => {
             user: req.user.id,
         })
     } else {
-        conversation = await ConversationModel.findById(conversationId)
+        conversation = await ConversationModel.findOne({
+            _id: conversationId,
+            user: req.user.id,
+        })
+
+        if (!conversation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Conversation not found',
+            })
+        }
     }
 
 
@@ -33,11 +98,37 @@ export const handleMessage = async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Conversation-Id', conversation._id.toString());
+    res.setHeader('X-Conversation-Title', conversation.title);
+    res.setHeader('Access-Control-Expose-Headers', 'X-Conversation-Id, X-Conversation-Title');
+
+    let assistantReply = '';
 
     for await (const [ token, metadata ] of stream) {
-        process.stdout.write(token.text);
-        res.write(`data: ${token.text}\n\n`);
+        const tokenText = token?.text || '';
+        assistantReply += tokenText;
+
+        process.stdout.write(tokenText);
+
+        const lines = tokenText.split('\n');
+        for (const line of lines) {
+            res.write(`data: ${line}\n`);
+        }
+        res.write('\n');
     }
+
+    if (assistantReply.trim()) {
+        await MessageModel.create({
+            conversation: conversation._id,
+            content: assistantReply,
+            author: 'ai',
+        });
+    }
+
+    await ConversationModel.updateOne(
+        { _id: conversation._id },
+        { $set: { updatedAt: new Date() } },
+    );
 
     res.end();
 

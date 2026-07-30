@@ -5,6 +5,7 @@ import Register from '../features/auth/ui/pages/Register.jsx';
 import ChatHome from '../features/chat/ui/pages/ChatHome.jsx';
 import ProtectedRoute from '../features/auth/ui/components/ProtectedRoute.jsx';
 import useAuth from '../features/auth/hooks/useAuth.js';
+import useChat from '../features/chat/hooks/useChat.js';
 
 const AuthBootstrap = () => {
   const { me } = useAuth();
@@ -53,33 +54,76 @@ const AuthLayout = () => {
 };
 
 const ChatLayout = () => {
+  const {
+    reset,
+    conversations,
+    selectedConversationId,
+    chooseConversation,
+    loadConversations,
+    isLoadingConversations,
+  } = useChat();
+  const bootstrappedRef = useRef(false);
+
+  useEffect(() => {
+    if (!bootstrappedRef.current) {
+      bootstrappedRef.current = true;
+      loadConversations();
+    }
+  }, [ loadConversations ]);
+
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto flex min-h-screen w-full  overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/60">
-        <aside className="hidden w-72 flex-col justify-between border-r border-white/10 bg-black p-6 lg:flex">
-          <div>
-            <Link to="/chat" className="text-lg font-semibold tracking-wide text-zinc-100">
-              ChatGPT Clone
+    <main className="h-screen bg-black text-zinc-100">
+      <div className="flex h-full w-full overflow-hidden">
+        <aside className="hidden w-[260px] flex-col border-r border-white/10 bg-[#0f0f10] md:flex">
+          <div className="border-b border-white/10 p-4">
+            <Link to="/chat" className="text-2xl font-semibold tracking-tight text-zinc-100">
+              ChatGPT
             </Link>
-            <p className="mt-8 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-sm text-zinc-300">
-              New chat
-            </p>
           </div>
 
-          <p className="text-sm text-zinc-500">MERN Boilerplate</p>
+          <div className="p-3">
+            <button
+              type="button"
+              onClick={reset}
+              className="w-full rounded-xl border border-white/10 bg-zinc-800/60 px-3 py-2 text-left text-sm text-zinc-200 transition hover:bg-zinc-700/60"
+            >
+              + New chat
+            </button>
+          </div>
+
+          <div className="chat-scrollbar flex-1 space-y-1 overflow-y-auto px-2 pb-3">
+            {isLoadingConversations ? (
+              <p className="px-2 py-1 text-xs text-zinc-500">Loading conversations...</p>
+            ) : null}
+
+            {!isLoadingConversations && conversations.length === 0 ? (
+              <p className="px-2 py-1 text-xs text-zinc-500">No conversations yet</p>
+            ) : null}
+
+            {conversations.map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => chooseConversation(conversation.id)}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                  selectedConversationId === conversation.id
+                    ? 'bg-zinc-700/70 text-zinc-100'
+                    : 'text-zinc-300 hover:bg-zinc-800/80'
+                }`}
+                title={conversation.title}
+              >
+                <span className="block truncate">{conversation.title || 'Untitled chat'}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-auto border-t border-white/10 p-4 text-sm text-zinc-400">
+            MERN Boilerplate
+          </div>
         </aside>
 
-        <section className="flex flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-white/10 bg-zinc-950 px-6 py-4">
-            <h1 className="text-sm tracking-wide text-zinc-300">Chat</h1>
-            <Link to="/login" className="text-sm text-zinc-400 transition hover:text-zinc-200">
-              Switch account
-            </Link>
-          </header>
-
-          <div className="flex flex-1 items-center justify-center p-6">
-            <Outlet />
-          </div>
+        <section className="flex min-w-0 flex-1 flex-col">
+          <Outlet />
         </section>
       </div>
     </main>

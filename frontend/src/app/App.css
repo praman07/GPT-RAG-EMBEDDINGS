@@ -1,1 +1,84 @@
 @import "tailwindcss";
+
+:root {
+	font-family: "Soehne", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+	background: #000;
+}
+
+.chat-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: #3a3a3c transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar {
+	width: 8px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+	background: #3a3a3c;
+	border-radius: 20px;
+}
+
+.markdown-content p {
+	margin: 0.6rem 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+	margin: 0.65rem 0;
+	padding-left: 1.25rem;
+}
+
+.markdown-content li {
+	margin: 0.3rem 0;
+}
+
+.markdown-content code {
+	border-radius: 0.4rem;
+	background: rgba(255, 255, 255, 0.1);
+	padding: 0.1rem 0.35rem;
+	font-size: 0.9em;
+}
+
+.markdown-content pre {
+	overflow-x: auto;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 0.9rem;
+	padding: 0.95rem;
+	background: #101418;
+	margin: 0.8rem 0;
+}
+
+.markdown-content pre code {
+	padding: 0;
+	background: transparent;
+}
+
+.markdown-content table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0.8rem 0;
+	font-size: 0.95em;
+}
+
+.markdown-content thead {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.markdown-content th,
+.markdown-content td {
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	padding: 0.5rem 0.65rem;
+	text-align: left;
+	vertical-align: top;
+}
