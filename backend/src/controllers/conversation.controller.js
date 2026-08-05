@@ -60,6 +60,7 @@ export const getConversations = async (req, res, next) => {
 
 export const handleMessage = async (req, res) => {
     const { message, conversationId } = req.body;
+    const user = req.user;
 
     let conversation = null
 
@@ -91,13 +92,16 @@ export const handleMessage = async (req, res) => {
         author: 'user'
     })
 
+    const messages = await MessageModel.find({ conversation: conversation._id })
 
-    const stream = await getStream({ message })
+    const stream = await getStream({ messages, userId: user.id })
 
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+
+
     res.setHeader('X-Conversation-Id', conversation._id.toString());
     res.setHeader('X-Conversation-Title', conversation.title);
     res.setHeader('Access-Control-Expose-Headers', 'X-Conversation-Id, X-Conversation-Title');
@@ -107,8 +111,6 @@ export const handleMessage = async (req, res) => {
     for await (const [ token, metadata ] of stream) {
         const tokenText = token?.text || '';
         assistantReply += tokenText;
-
-        process.stdout.write(tokenText);
 
         const lines = tokenText.split('\n');
         for (const line of lines) {
