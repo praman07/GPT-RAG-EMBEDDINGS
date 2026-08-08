@@ -1,6 +1,7 @@
 import ConversationModel from "../models/conversation.model.js";
 import MessageModel from "../models/message.model.js";
 import { generateTitle, getStream } from "../services/ai.service.js";
+import { AIMessageChunk } from "langchain"
 
 
 export const getConversations = async (req, res, next) => {
@@ -109,14 +110,18 @@ export const handleMessage = async (req, res) => {
     let assistantReply = '';
 
     for await (const [ token, metadata ] of stream) {
-        const tokenText = token?.text || '';
-        assistantReply += tokenText;
 
-        const lines = tokenText.split('\n');
-        for (const line of lines) {
-            res.write(`data: ${line}\n`);
+        if (token instanceof AIMessageChunk) {
+
+            const tokenText = token?.text || '';
+            assistantReply += tokenText;
+
+            const lines = tokenText.split('\n');
+            for (const line of lines) {
+                res.write(`data: ${line}\n`);
+            }
+            res.write('\n');
         }
-        res.write('\n');
     }
 
     if (assistantReply.trim()) {
