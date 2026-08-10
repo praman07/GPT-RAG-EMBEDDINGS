@@ -81,14 +81,11 @@ export async function getStream({ messages, userId }) {
         model,
         tools: [ readContext, updateContext ],
         systemPrompt: `
-        
-
-
         Update the context for the current user whenever you found information that is relevant for weeks/months.
 
         read the current user context whenever you need to know about the user.
 
-        current userId is ${userId}
+        current userId is ${userId} 
 
         Current Date is ${new Date().toDateString()}
         `
