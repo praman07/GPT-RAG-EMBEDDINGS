@@ -52,6 +52,14 @@ export const registerApi = (payload) => authRequest('/api/auth/register', 'POST'
 export const loginApi = (payload) => authRequest('/api/auth/login', 'POST', payload);
 
 /**
+ * Switches current session token to a saved account token.
+ *
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export const switchAccountApi = (token) => authRequest('/api/auth/switch', 'POST', { token });
+
+/**
  * Fetches currently authenticated user from cookie token.
  *
  * @returns {Promise<any>}

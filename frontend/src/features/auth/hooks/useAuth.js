@@ -1,44 +1,55 @@
+import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     clearAuthError,
     fetchMe,
     loginUser,
     logoutUser,
+    prepareAddAccount,
+    refreshSavedAccounts,
     registerUser,
+    removeSavedAccount,
+    switchUserAccount,
 } from '../state/authSlice.js';
 
-/**
- * Auth feature hook that exposes state and auth actions to UI layer.
- *
- * @returns {{
- *  user: any,
- *  loading: boolean,
- *  error: string | null,
- *  isAuthenticated: boolean,
- *  register: (payload: {name: string, email: string, password: string}) => Promise<any>,
- *  login: (payload: {email: string, password: string}) => Promise<any>,
- *  logout: () => Promise<any>,
- *  me: () => Promise<any>,
- *  clearError: () => {type: string}
- * }}
- */
 const useAuth = () => {
     const dispatch = useDispatch();
-    const authState = useSelector((state) => state.auth);
+    const { user, loading, error, isAuthenticated, isAuthChecked, savedAccounts } = useSelector((state) => state.auth);
 
-    const register = (payload) => dispatch(registerUser(payload));
-    const login = (payload) => dispatch(loginUser(payload));
-    const logout = () => dispatch(logoutUser());
-    const me = () => dispatch(fetchMe());
-    const clearError = () => dispatch(clearAuthError());
+    const register = useCallback((credentials) => dispatch(registerUser(credentials)), [dispatch]);
+
+    const login = useCallback((credentials) => dispatch(loginUser(credentials)), [dispatch]);
+
+    const switchAccount = useCallback((token) => dispatch(switchUserAccount(token)), [dispatch]);
+
+    const me = useCallback(() => dispatch(fetchMe()), [dispatch]);
+
+    const logout = useCallback(() => dispatch(logoutUser()), [dispatch]);
+
+    const clearError = useCallback(() => dispatch(clearAuthError()), [dispatch]);
+
+    const startAddAccount = useCallback(() => dispatch(prepareAddAccount()), [dispatch]);
+
+    const removeAccount = useCallback((userId) => dispatch(removeSavedAccount(userId)), [dispatch]);
+
+    const reloadAccounts = useCallback(() => dispatch(refreshSavedAccounts()), [dispatch]);
 
     return {
-        ...authState,
+        user,
+        loading,
+        error,
+        isAuthenticated,
+        isAuthChecked,
+        savedAccounts,
         register,
         login,
-        logout,
+        switchAccount,
         me,
+        logout,
         clearError,
+        prepareAddAccount: startAddAccount,
+        removeAccount,
+        reloadAccounts,
     };
 };
 

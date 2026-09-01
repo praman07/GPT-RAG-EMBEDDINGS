@@ -51,6 +51,7 @@ export const register = async (req, res, next) => {
             success: true,
             message: 'Registered successfully',
             user: sanitizeUser(user),
+            token,
         });
     } catch (error) {
         next(error);
@@ -91,9 +92,47 @@ export const login = async (req, res, next) => {
             success: true,
             message: 'Logged in successfully',
             user: sanitizeUser(user),
+            token,
         });
     } catch (error) {
         next(error);
+    }
+};
+
+export const switchAccount = async (req, res, next) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token is required to switch account',
+            });
+        }
+
+        const decoded = jwt.verify(token, env.JWT_SECRET);
+        const user = await User.findById(decoded.id).select('-password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        res.cookie(env.COOKIE_NAME, token, cookieOptions);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Switched account successfully',
+            user: sanitizeUser(user),
+            token,
+        });
+    } catch {
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid or expired session token',
+        });
     }
 };
 

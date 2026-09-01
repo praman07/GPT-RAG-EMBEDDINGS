@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, logout, me, register } from '../controllers/auth.controller.js';
+import { login, logout, me, register, switchAccount } from '../controllers/auth.controller.js';
 import protect from '../middleware/auth.middleware.js';
 
 const authRouter = Router();
@@ -7,6 +7,7 @@ const authRouter = Router();
 authRouter.post('/register', register);
 authRouter.post('/login', login);
 authRouter.post('/logout', logout);
+authRouter.post('/switch', switchAccount);
 authRouter.get('/me', protect, me);
 
 export default authRouter;

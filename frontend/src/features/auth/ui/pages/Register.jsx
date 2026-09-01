@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
+import { resetChat } from '../../../chat/state/chatSlice.js';
 import useAuth from '../../hooks/useAuth.js';
 
 const Register = () => {
     const [form, setForm] = useState({ name: '', email: '', password: '' });
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const { loading, error, isAuthenticated, clearError, register } = useAuth();
 
     useEffect(() => {
         if (isAuthenticated) {
+            dispatch(resetChat());
             navigate('/chat', { replace: true });
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, dispatch, navigate]);
 
     useEffect(() => {
         return () => {

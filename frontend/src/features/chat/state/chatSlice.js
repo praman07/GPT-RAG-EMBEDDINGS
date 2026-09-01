@@ -170,6 +170,7 @@ const chatSlice = createSlice({
             state.error = null;
         },
         resetChat: (state) => {
+            state.conversations = [];
             state.selectedConversationId = null;
             state.messages = [];
             state.error = null;
@@ -183,21 +184,9 @@ const chatSlice = createSlice({
             })
             .addCase(fetchConversations.fulfilled, (state, action) => {
                 state.isLoadingConversations = false;
-                state.conversations = action.payload;
-
-                if (!state.selectedConversationId && action.payload.length > 0) {
-                    state.selectedConversationId = action.payload[ 0 ].id;
-                    state.messages = [ ...(action.payload[ 0 ].messages || []) ];
-                    return;
-                }
-
-                if (state.selectedConversationId) {
-                    const selectedConversation = action.payload.find((item) => item.id === state.selectedConversationId);
-                    state.messages = selectedConversation ? [ ...(selectedConversation.messages || []) ] : [];
-                    if (!selectedConversation) {
-                        state.selectedConversationId = null;
-                    }
-                }
+                state.conversations = action.payload || [];
+                state.selectedConversationId = null;
+                state.messages = [];
             })
             .addCase(fetchConversations.rejected, (state, action) => {
                 state.isLoadingConversations = false;

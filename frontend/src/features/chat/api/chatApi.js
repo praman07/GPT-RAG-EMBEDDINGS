@@ -1,3 +1,14 @@
+import { getSavedAccounts } from '../../auth/state/authSlice.js';
+
+const getAuthHeaders = () => {
+    const saved = getSavedAccounts();
+    const activeToken = saved[0]?.token;
+    return {
+        'Content-Type': 'application/json',
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+    };
+};
+
 const parseErrorResponse = async (response) => {
     try {
         const data = await response.json();
@@ -26,7 +37,6 @@ const readSseChunk = (chunk) => {
             continue;
         }
 
-        // Server writes "data: ${text}", so remove only the protocol prefix and one separator space.
         let value = line.slice(5);
         if (value.startsWith(' ')) {
             value = value.slice(1);
@@ -48,9 +58,7 @@ export const sendMessageApi = async ({ message, attachments = [], conversationId
     const response = await fetch('/api/conversation', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ message, attachments, conversationId }),
     });
 
@@ -123,9 +131,7 @@ export const fetchConversationsApi = async () => {
     const response = await fetch('/api/conversation', {
         method: 'GET',
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
     });
 
     return parseJsonResponse(response);
@@ -135,9 +141,7 @@ export const renameConversationApi = async (id, title) => {
     const response = await fetch(`/api/conversation/${id}/rename`, {
         method: 'PATCH',
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ title }),
     });
 
@@ -148,9 +152,7 @@ export const togglePinConversationApi = async (id) => {
     const response = await fetch(`/api/conversation/${id}/pin`, {
         method: 'PATCH',
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
     });
 
     return parseJsonResponse(response);
@@ -160,11 +162,8 @@ export const deleteConversationApi = async (id) => {
     const response = await fetch(`/api/conversation/${id}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
     });
 
     return parseJsonResponse(response);
 };
-
