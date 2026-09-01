@@ -91,10 +91,12 @@ const SidebarChatItem = ({ conversation, isSelected, onSelect, onRename, onToggl
         />
         <button
           type="submit"
-          className="rounded p-1 text-xs text-emerald-400 hover:bg-zinc-800 hover:text-emerald-300 transition"
+          className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition"
           title="Save"
         >
-          ✓
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="square" strokeLinejoin="miter" d="M5 13l4 4L19 7" />
+          </svg>
         </button>
         <button
           type="button"
@@ -102,10 +104,12 @@ const SidebarChatItem = ({ conversation, isSelected, onSelect, onRename, onToggl
             setIsEditing(false);
             setEditTitle(conversation.title || '');
           }}
-          className="rounded p-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition"
+          className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition"
           title="Cancel"
         >
-          ✕
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="square" strokeLinejoin="miter" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </form>
     );
@@ -362,8 +366,8 @@ const ChatLayout = () => {
       {notification && (
         <div className="fixed top-5 right-5 z-50 flex items-start gap-3 rounded-xl border border-zinc-700 bg-zinc-900/95 p-4 shadow-2xl backdrop-blur-md max-w-md animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-300">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="square" strokeLinejoin="miter" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div className="flex-1 space-y-0.5">
@@ -375,8 +379,8 @@ const ChatLayout = () => {
             onClick={() => setNotification(null)}
             className="text-zinc-500 hover:text-zinc-300 transition"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="square" strokeLinejoin="miter" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>

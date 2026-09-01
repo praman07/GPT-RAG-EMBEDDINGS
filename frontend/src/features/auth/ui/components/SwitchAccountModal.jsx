@@ -65,8 +65,8 @@ export default function SwitchAccountModal({ isOpen, onClose, onNotify }) {
             onClick={onClose}
             className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="square" strokeLinejoin="miter" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -90,8 +90,8 @@ export default function SwitchAccountModal({ isOpen, onClose, onNotify }) {
                   <span className="truncate text-xs text-zinc-400">{activeAccount.user.email}</span>
                 </div>
               </div>
-              <svg className="h-5 w-5 text-zinc-300 shrink-0 ml-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              <svg className="h-4 w-4 text-zinc-300 shrink-0 ml-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="square" strokeLinejoin="miter" d="M5 13l4 4L19 7" />
               </svg>
             </div>
           ) : null}
@@ -127,11 +127,11 @@ export default function SwitchAccountModal({ isOpen, onClose, onNotify }) {
                         e.stopPropagation();
                         removeAccount(account.user.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-rose-400 transition"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-zinc-200 transition"
                       title="Remove account"
                     >
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="square" strokeLinejoin="miter" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>

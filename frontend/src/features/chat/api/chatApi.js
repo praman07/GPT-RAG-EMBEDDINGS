@@ -19,7 +19,15 @@ const parseErrorResponse = async (response) => {
 };
 
 const parseJsonResponse = async (response) => {
-    const data = await response.json();
+    let data;
+    try {
+        data = await response.json();
+    } catch (e) {
+        if (!response.ok) {
+            throw new Error(`Server returned status ${response.status}`);
+        }
+        throw new Error('Invalid response received from server');
+    }
 
     if (!response.ok) {
         throw new Error(data?.message || 'Request failed');
