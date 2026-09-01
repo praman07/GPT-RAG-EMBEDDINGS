@@ -39,19 +39,19 @@ const readSseChunk = (chunk) => {
 };
 
 /**
- * Sends a chat message and streams token chunks from backend SSE response.
+ * Sends a chat message with optional attachments and streams token chunks from backend SSE response.
  *
- * @param {{message: string, conversationId?: string | null, onToken?: (token: string, fullText: string) => void}} params
- * @returns {Promise<{conversationId: string | null, reply: string}>}
+ * @param {{message: string, attachments?: Array<any>, conversationId?: string | null, onToken?: (token: string, fullText: string) => void}} params
+ * @returns {Promise<{conversationId: string | null, conversationTitle: string | null, reply: string}>}
  */
-export const sendMessageApi = async ({ message, conversationId, onToken }) => {
+export const sendMessageApi = async ({ message, attachments = [], conversationId, onToken }) => {
     const response = await fetch('/api/conversation', {
         method: 'POST',
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message, conversationId }),
+        body: JSON.stringify({ message, attachments, conversationId }),
     });
 
     if (!response.ok) {
@@ -130,3 +130,41 @@ export const fetchConversationsApi = async () => {
 
     return parseJsonResponse(response);
 };
+
+export const renameConversationApi = async (id, title) => {
+    const response = await fetch(`/api/conversation/${id}/rename`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title }),
+    });
+
+    return parseJsonResponse(response);
+};
+
+export const togglePinConversationApi = async (id) => {
+    const response = await fetch(`/api/conversation/${id}/pin`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    return parseJsonResponse(response);
+};
+
+export const deleteConversationApi = async (id) => {
+    const response = await fetch(`/api/conversation/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    return parseJsonResponse(response);
+};
+

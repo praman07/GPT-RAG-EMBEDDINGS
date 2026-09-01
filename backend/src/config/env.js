@@ -10,7 +10,7 @@ const env = {
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
     CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
     COOKIE_NAME: process.env.COOKIE_NAME || 'token',
-    MISTRALAI_API_KEY: process.env.MISTRALAI_API_KEY,
+    MISTRALAI_API_KEY: process.env.MISTRALAI_API_KEY || process.env.MISTRAL_API_KEY,
 };
 
 export default env;

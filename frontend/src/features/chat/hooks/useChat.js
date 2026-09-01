@@ -5,6 +5,9 @@ import {
     resetChat,
     selectConversation,
     sendMessage,
+    renameConversation,
+    togglePinConversation,
+    deleteConversation,
 } from '../state/chatSlice.js';
 
 const useChat = () => {
@@ -15,9 +18,12 @@ const useChat = () => {
         ...chatState,
         loadConversations: () => dispatch(fetchConversations()),
         chooseConversation: (conversationId) => dispatch(selectConversation(conversationId)),
-        send: (message) => dispatch(sendMessage({ message })),
+        send: (message, attachments = []) => dispatch(sendMessage({ message, attachments })),
         clearError: () => dispatch(clearChatError()),
         reset: () => dispatch(resetChat()),
+        rename: (id, title) => dispatch(renameConversation({ id, title })),
+        togglePin: (id) => dispatch(togglePinConversation(id)),
+        remove: (id) => dispatch(deleteConversation(id)),
     };
 };
 

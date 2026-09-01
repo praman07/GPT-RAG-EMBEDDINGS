@@ -1,5 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { fetchConversationsApi, sendMessageApi } from '../api/chatApi.js';
+import { 
+    fetchConversationsApi, 
+    sendMessageApi, 
+    renameConversationApi, 
+    togglePinConversationApi, 
+    deleteConversationApi 
+} from '../api/chatApi.js';
 
 const initialState = {
     conversations: [],
@@ -41,23 +47,60 @@ export const fetchConversations = createAsyncThunk('chat/fetchConversations', as
     }
 });
 
+export const renameConversation = createAsyncThunk(
+    'chat/renameConversation',
+    async ({ id, title }, { rejectWithValue }) => {
+        try {
+            const response = await renameConversationApi(id, title);
+            return response.conversation;
+        } catch (error) {
+            return rejectWithValue(error.message || 'Failed to rename conversation');
+        }
+    }
+);
+
+export const togglePinConversation = createAsyncThunk(
+    'chat/togglePinConversation',
+    async (id, { rejectWithValue }) => {
+        try {
+            const response = await togglePinConversationApi(id);
+            return response.conversation;
+        } catch (error) {
+            return rejectWithValue(error.message || 'Failed to pin/unpin conversation');
+        }
+    }
+);
+
+export const deleteConversation = createAsyncThunk(
+    'chat/deleteConversation',
+    async (id, { rejectWithValue }) => {
+        try {
+            await deleteConversationApi(id);
+            return id;
+        } catch (error) {
+            return rejectWithValue(error.message || 'Failed to delete conversation');
+        }
+    }
+);
+
 export const sendMessage = createAsyncThunk(
     'chat/sendMessage',
-    async ({ message }, { dispatch, getState, rejectWithValue }) => {
+    async ({ message = '', attachments = [] }, { dispatch, getState, rejectWithValue }) => {
         const trimmedMessage = message.trim();
 
-        if (!trimmedMessage) {
-            return rejectWithValue('Message is required');
+        if (!trimmedMessage && attachments.length === 0) {
+            return rejectWithValue('Please enter a message or attach a file');
         }
 
         const previousConversationId = getState().chat.selectedConversationId;
 
-        dispatch(appendUserMessage(trimmedMessage));
+        dispatch(appendUserMessage({ message: trimmedMessage, attachments }));
         dispatch(startAssistantMessage());
 
         try {
             const { conversationId, conversationTitle } = await sendMessageApi({
                 message: trimmedMessage,
+                attachments,
                 conversationId: previousConversationId,
                 onToken: (token) => {
                     dispatch(appendAssistantToken(token));
@@ -80,10 +123,12 @@ const chatSlice = createSlice({
     initialState,
     reducers: {
         appendUserMessage: (state, action) => {
+            const { message, attachments = [] } = action.payload || {};
             state.messages.push({
                 id: `user-${Date.now()}`,
                 author: 'user',
-                content: action.payload,
+                content: message || '',
+                attachments,
             });
 
             syncCurrentMessagesToSelectedConversation(state);
@@ -157,6 +202,35 @@ const chatSlice = createSlice({
             .addCase(fetchConversations.rejected, (state, action) => {
                 state.isLoadingConversations = false;
                 state.error = action.payload || action.error.message;
+            })
+            .addCase(renameConversation.fulfilled, (state, action) => {
+                const updated = action.payload;
+                const conversation = state.conversations.find((item) => item.id === updated.id);
+                if (conversation) {
+                    conversation.title = updated.title;
+                }
+            })
+            .addCase(togglePinConversation.fulfilled, (state, action) => {
+                const updated = action.payload;
+                const conversation = state.conversations.find((item) => item.id === updated.id);
+                if (conversation) {
+                    conversation.isPinned = updated.isPinned;
+                    state.conversations.sort((a, b) => {
+                        if (Boolean(a.isPinned) === Boolean(b.isPinned)) {
+                            return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+                        }
+                        return a.isPinned ? -1 : 1;
+                    });
+                }
+            })
+            .addCase(deleteConversation.fulfilled, (state, action) => {
+                const deletedId = action.payload;
+                state.conversations = state.conversations.filter((item) => item.id !== deletedId);
+                if (state.selectedConversationId === deletedId) {
+                    const nextSelected = state.conversations[0];
+                    state.selectedConversationId = nextSelected ? nextSelected.id : null;
+                    state.messages = nextSelected ? [ ...(nextSelected.messages || []) ] : [];
+                }
             })
             .addCase(sendMessage.pending, (state) => {
                 state.isSending = true;

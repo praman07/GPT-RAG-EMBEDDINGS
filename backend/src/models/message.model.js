@@ -14,8 +14,21 @@ const messageSchema = new mongoose.Schema({
     },
     content: {
         type: String,
-        required: true
-    }
+        default: ''
+    },
+    attachments: [
+        {
+            type: {
+                type: String,
+                enum: ['image', 'document'],
+                required: true,
+            },
+            url: { type: String, required: true },
+            name: { type: String, required: true },
+            mimeType: { type: String, required: true },
+            extractedText: { type: String, default: '' },
+        }
+    ]
 }, {
     timestamps: true
 });
