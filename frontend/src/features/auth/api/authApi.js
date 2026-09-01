@@ -22,6 +22,8 @@ const parseResponse = async (response) => {
     return data;
 };
 
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
 /**
  * Executes a cookie-authenticated request to auth endpoints.
  *
@@ -31,7 +33,8 @@ const parseResponse = async (response) => {
  * @returns {Promise<any>}
  */
 const authRequest = async (url, method = 'GET', body) => {
-    const response = await fetch(url, {
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    const response = await fetch(fullUrl, {
         method,
         credentials: 'include',
         headers: {

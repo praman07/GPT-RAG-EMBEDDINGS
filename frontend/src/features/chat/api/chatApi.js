@@ -56,6 +56,8 @@ const readSseChunk = (chunk) => {
     return dataLines.join('\n');
 };
 
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
 /**
  * Sends a chat message with optional attachments and streams token chunks from backend SSE response.
  *
@@ -63,7 +65,7 @@ const readSseChunk = (chunk) => {
  * @returns {Promise<{conversationId: string | null, conversationTitle: string | null, reply: string}>}
  */
 export const sendMessageApi = async ({ message, attachments = [], conversationId, onToken }) => {
-    const response = await fetch('/api/conversation', {
+    const response = await fetch(`${API_BASE}/api/conversation`, {
         method: 'POST',
         credentials: 'include',
         headers: getAuthHeaders(),
@@ -136,7 +138,7 @@ export const sendMessageApi = async ({ message, attachments = [], conversationId
  * @returns {Promise<{conversations: Array<any>}>}
  */
 export const fetchConversationsApi = async () => {
-    const response = await fetch('/api/conversation', {
+    const response = await fetch(`${API_BASE}/api/conversation`, {
         method: 'GET',
         credentials: 'include',
         headers: getAuthHeaders(),
@@ -146,7 +148,7 @@ export const fetchConversationsApi = async () => {
 };
 
 export const renameConversationApi = async (id, title) => {
-    const response = await fetch(`/api/conversation/${id}/rename`, {
+    const response = await fetch(`${API_BASE}/api/conversation/${id}/rename`, {
         method: 'PATCH',
         credentials: 'include',
         headers: getAuthHeaders(),
@@ -157,7 +159,7 @@ export const renameConversationApi = async (id, title) => {
 };
 
 export const togglePinConversationApi = async (id) => {
-    const response = await fetch(`/api/conversation/${id}/pin`, {
+    const response = await fetch(`${API_BASE}/api/conversation/${id}/pin`, {
         method: 'PATCH',
         credentials: 'include',
         headers: getAuthHeaders(),
@@ -167,7 +169,7 @@ export const togglePinConversationApi = async (id) => {
 };
 
 export const deleteConversationApi = async (id) => {
-    const response = await fetch(`/api/conversation/${id}`, {
+    const response = await fetch(`${API_BASE}/api/conversation/${id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: getAuthHeaders(),
