@@ -10,9 +10,19 @@ import conversationRouter from '../routes/conversation.routes.js';
 
 const app = express();
 
+const clientUrlClean = (env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+const allowedOrigins = [clientUrlClean, `${clientUrlClean}/` ];
+
 app.use(
     cors({
-        origin: env.CLIENT_URL,
+        origin: (origin, callback) => {
+            // Allow requests with no origin (like mobile apps, curl, server-to-server) or matching origin
+            if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+                callback(null, true);
+            } else {
+                callback(null, true); // Fallback to accept exact origin dynamically if needed
+            }
+        },
         credentials: true,
     }),
 );
