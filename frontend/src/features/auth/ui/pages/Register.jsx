@@ -45,7 +45,7 @@ const Register = () => {
                         value={form.name}
                         onChange={handleChange}
                         className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-zinc-100 outline-none ring-0 transition focus:border-zinc-500"
-                        placeholder="Ankur"
+                        placeholder="Praman Bhogal"
                     />
                 </label>
 
