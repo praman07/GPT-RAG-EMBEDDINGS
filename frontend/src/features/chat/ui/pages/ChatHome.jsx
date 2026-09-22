@@ -366,34 +366,37 @@ const ChatHome = () => {
             {messages.map((chatMessage) => (
               <div key={chatMessage.id}>
                 {chatMessage.author === 'user' ? (
-                  <div className="group ml-auto flex w-fit max-w-[85%] sm:max-w-2xl flex-col items-end">
-                    <div className="space-y-2 rounded-3xl bg-zinc-800 text-zinc-100 px-5 py-3 text-sm shadow-sm border border-zinc-700/60 break-words whitespace-pre-wrap max-w-full overflow-hidden">
-                      {/* Render attachments in user bubble */}
-                      {chatMessage.attachments && chatMessage.attachments.length > 0 ? (
-                        <div className="flex flex-wrap gap-2 pb-1">
-                          {chatMessage.attachments.map((att, idx) => (
-                            <div key={idx} className="overflow-hidden">
-                              {att.type === 'image' ? (
-                                <img
-                                  src={att.url}
-                                  alt={att.name || 'Attached image'}
-                                  className="max-h-48 rounded-xl object-cover shadow-sm"
-                                />
-                              ) : (
-                                <div className="flex items-center gap-2 rounded-xl bg-zinc-700/80 px-3 py-2 text-xs text-zinc-200 font-medium border border-zinc-600/50">
-                                  <svg className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                  <span className="truncate max-w-[180px]">{att.name}</span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
+                  <div className="group ml-auto flex w-fit max-w-[85%] sm:max-w-2xl flex-col items-end gap-2">
+                    {/* Render attachments as separate cards above the text prompt */}
+                    {chatMessage.attachments && chatMessage.attachments.length > 0 ? (
+                      <div className="flex flex-wrap justify-end gap-2 max-w-full">
+                        {chatMessage.attachments.map((att, idx) => (
+                          <div key={idx} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-md">
+                            {att.type === 'image' ? (
+                              <img
+                                src={att.url}
+                                alt={att.name || 'Attached image'}
+                                className="max-h-64 max-w-full rounded-2xl object-contain block"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2 px-3.5 py-2.5 text-xs text-zinc-200 font-medium">
+                                <svg className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span className="truncate max-w-[200px]">{att.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
 
-                      {chatMessage.content ? <div className="break-words whitespace-pre-wrap leading-relaxed">{chatMessage.content}</div> : null}
-                    </div>
+                    {/* Distinct prompt text bubble */}
+                    {chatMessage.content ? (
+                      <div className="rounded-3xl bg-zinc-800 text-zinc-100 px-5 py-3 text-sm shadow-sm border border-zinc-700/60 break-words whitespace-pre-wrap max-w-full overflow-hidden leading-relaxed">
+                        {chatMessage.content}
+                      </div>
+                    ) : null}
 
                     {/* Reverse arrow button to recall prompt & attachments */}
                     <div className="mt-1 flex items-center justify-end px-2">

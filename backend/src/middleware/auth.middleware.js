@@ -12,7 +12,7 @@ import env from '../config/env.js';
 const protect = (req, res, next) => {
     const authHeader = req.headers.authorization;
     const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
-    const token = req.cookies[ env.COOKIE_NAME ] || bearerToken;
+    const token = bearerToken || req.cookies[ env.COOKIE_NAME ];
 
     if (!token) {
         return res.status(401).json({

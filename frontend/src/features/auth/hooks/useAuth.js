@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+    cancelAddAccount,
     clearAuthError,
     fetchMe,
     loginUser,
@@ -30,6 +31,8 @@ const useAuth = () => {
 
     const startAddAccount = useCallback(() => dispatch(prepareAddAccount()), [dispatch]);
 
+    const cancelAccountAdd = useCallback(() => dispatch(cancelAddAccount()), [dispatch]);
+
     const removeAccount = useCallback((userId) => dispatch(removeSavedAccount(userId)), [dispatch]);
 
     const reloadAccounts = useCallback(() => dispatch(refreshSavedAccounts()), [dispatch]);
@@ -48,6 +51,7 @@ const useAuth = () => {
         logout,
         clearError,
         prepareAddAccount: startAddAccount,
+        cancelAddAccount: cancelAccountAdd,
         removeAccount,
         reloadAccounts,
     };

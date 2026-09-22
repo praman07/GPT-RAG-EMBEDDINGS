@@ -16,14 +16,15 @@ const allowedOrigins = [clientUrlClean, `${clientUrlClean}/` ];
 app.use(
     cors({
         origin: (origin, callback) => {
-            // Allow requests with no origin (like mobile apps, curl, server-to-server) or matching origin
-            if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
-                callback(null, true);
-            } else {
-                callback(null, true); // Fallback to accept exact origin dynamically if needed
+            if (!origin) return callback(null, true);
+            const cleanOrigin = origin.replace(/\/$/, '');
+            if (allowedOrigins.includes(cleanOrigin)) {
+                return callback(null, cleanOrigin);
             }
+            return callback(null, cleanOrigin);
         },
         credentials: true,
+        maxAge: 86400,
     }),
 );
 app.use(morgan('dev'));

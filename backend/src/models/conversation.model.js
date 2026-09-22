@@ -18,6 +18,8 @@ const conversationSchema = new mongoose.Schema({
     timestamps: true
 });
 
+conversationSchema.index({ user: 1, isPinned: -1, updatedAt: -1 });
+
 const Conversation = mongoose.model('Conversation', conversationSchema);
 
 export default Conversation;

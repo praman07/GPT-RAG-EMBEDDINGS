@@ -161,7 +161,7 @@ export const me = async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            user,
+            user: sanitizeUser(user),
         });
     } catch (error) {
         next(error);

@@ -83,6 +83,7 @@ export const getConversations = async (req, res, next) => {
         const messages = await MessageModel.find({
             conversation: { $in: conversationIds },
         })
+            .select('-attachments.extractedText')
             .sort({ createdAt: 1 })
             .lean();
 
@@ -98,7 +99,12 @@ export const getConversations = async (req, res, next) => {
                 id: message._id,
                 author: message.author,
                 content: message.content || "",
-                attachments: message.attachments || [],
+                attachments: (message.attachments || []).map((att) => ({
+                    type: att.type,
+                    name: att.name,
+                    mimeType: att.mimeType,
+                    url: att.url,
+                })),
                 createdAt: message.createdAt,
             });
         }
@@ -115,6 +121,53 @@ export const getConversations = async (req, res, next) => {
         return res.status(200).json({
             success: true,
             conversations: responseConversations,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getSingleConversation = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const conversation = await ConversationModel.findOneAndUpdate(
+            { _id: id, user: req.user.id },
+            { updatedAt: new Date() },
+            { new: true }
+        ).lean();
+
+        if (!conversation) {
+            return res.status(404).json({ success: false, message: 'Conversation not found' });
+        }
+
+        const messages = await MessageModel.find({ conversation: id })
+            .select('-attachments.extractedText')
+            .sort({ createdAt: 1 })
+            .lean();
+
+        const formattedMessages = messages.map((msg) => ({
+            id: msg._id,
+            author: msg.author,
+            content: msg.content || '',
+            attachments: (msg.attachments || []).map((att) => ({
+                type: att.type,
+                name: att.name,
+                mimeType: att.mimeType,
+                url: att.url,
+            })),
+            createdAt: msg.createdAt,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            conversation: {
+                id: conversation._id,
+                title: conversation.title,
+                isPinned: Boolean(conversation.isPinned),
+                createdAt: conversation.createdAt,
+                updatedAt: conversation.updatedAt,
+                messages: formattedMessages,
+            },
         });
     } catch (error) {
         next(error);
@@ -158,11 +211,17 @@ export const handleMessage = async (req, res, next) => {
         }
 
         let conversation = null;
+        let isNewConversation = false;
+        let titlePromise = null;
 
         if (!conversationId) {
-            const title = await generateTitle({ message: trimmedMessage, attachments: sanitizedAttachments });
+            isNewConversation = true;
+            // Clean, fast title derived from the prompt without blocking on external AI API
+            const cleanTitle = trimmedMessage 
+                ? trimmedMessage.replace(/^["']|["']$/g, '').slice(0, 32).trim() 
+                : (sanitizedAttachments[0]?.name || "New Chat");
             conversation = await ConversationModel.create({
-                title,
+                title: cleanTitle,
                 user: req.user.id,
             });
         } else {
@@ -195,10 +254,14 @@ export const handleMessage = async (req, res, next) => {
         try {
             stream = await getStream({ messages, userId: user.id });
         } catch (aiErr) {
-            console.error("Mistral AI Service Error:", aiErr.message);
+            console.error("AI Service Error:", aiErr.message);
+            const isRateLimit = aiErr.message.includes("429") || aiErr.message.toLowerCase().includes("rate limit");
+            const userMsg = isRateLimit
+                ? "Rate limit exceeded on AI API provider. Please set GEMINI_API_KEY in backend/.env for high limits."
+                : `AI Service Error: ${aiErr.message}. Please check your GEMINI_API_KEY in backend/.env.`;
             return res.status(500).json({
                 success: false,
-                message: "Unable to process request with Mistral API. Please check your API key and connection.",
+                message: userMsg,
             });
         }
 
@@ -212,45 +275,40 @@ export const handleMessage = async (req, res, next) => {
 
         let assistantReply = "";
 
-        for await (const chunk of stream) {
-            let token = Array.isArray(chunk) ? chunk[0] : chunk;
-            if (!token) continue;
+        try {
+            for await (const chunk of stream) {
+                let token = Array.isArray(chunk) ? chunk[0] : chunk;
+                if (!token) continue;
 
-            // 1. Skip non-AI messages (e.g. ToolMessage, SystemMessage, HumanMessage)
-            const type = typeof token._getType === "function" ? token._getType() : token.type;
-            if (type && type !== "ai") {
-                continue;
+                let tokenText = "";
+                if (typeof token === "string") {
+                    tokenText = token;
+                } else if (typeof token?.content === "string") {
+                    tokenText = token.content;
+                } else if (Array.isArray(token?.content)) {
+                    tokenText = token.content
+                        .filter((c) => c.type === "text" || typeof c === "string")
+                        .map((c) => (typeof c === "string" ? c : c.text || ""))
+                        .join("");
+                } else if (typeof token?.text === "string") {
+                    tokenText = token.text;
+                }
+
+                if (!tokenText) continue;
+
+                assistantReply += tokenText;
+
+                const lines = tokenText.split("\n");
+                for (const line of lines) {
+                    res.write(`data: ${line}\n`);
+                }
+                res.write("\n");
             }
-
-            // 2. Skip AI messages that are requesting tool execution
-            if (
-                (token.tool_calls && token.tool_calls.length > 0) ||
-                (token.tool_call_chunks && token.tool_call_chunks.length > 0)
-            ) {
-                continue;
-            }
-
-            let tokenText = "";
-            if (typeof token.content === "string") {
-                tokenText = token.content;
-            } else if (Array.isArray(token.content)) {
-                tokenText = token.content
-                    .filter((c) => c.type === "text" || typeof c === "string")
-                    .map((c) => (typeof c === "string" ? c : c.text || ""))
-                    .join("");
-            } else if (typeof token.text === "string") {
-                tokenText = token.text;
-            }
-
-            if (!tokenText) continue;
-
-            assistantReply += tokenText;
-
-            const lines = tokenText.split("\n");
-            for (const line of lines) {
-                res.write(`data: ${line}\n`);
-            }
-            res.write("\n");
+        } catch (streamIterErr) {
+            console.error("Stream iteration error:", streamIterErr.message);
+            const errNotice = "\n\n*(Notice: Request could not be fully completed due to provider rate limit. Please try again shortly.)*";
+            assistantReply += errNotice;
+            res.write(`data: ${errNotice}\n\n`);
         }
 
         if (assistantReply.trim()) {

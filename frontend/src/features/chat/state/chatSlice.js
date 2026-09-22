@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { 
     fetchConversationsApi, 
+    fetchSingleConversationApi,
     sendMessageApi, 
     renameConversationApi, 
     togglePinConversationApi, 
@@ -44,6 +45,15 @@ export const fetchConversations = createAsyncThunk('chat/fetchConversations', as
         return response.conversations || [];
     } catch (error) {
         return rejectWithValue(error.message || 'Unable to load conversations');
+    }
+});
+
+export const fetchSingleConversation = createAsyncThunk('chat/fetchSingleConversation', async (id, { rejectWithValue }) => {
+    try {
+        const response = await fetchSingleConversationApi(id);
+        return response.conversation;
+    } catch (error) {
+        return rejectWithValue(error.message || 'Unable to load conversation details');
     }
 });
 
@@ -163,15 +173,36 @@ const chatSlice = createSlice({
             const selectedConversationId = action.payload;
             state.selectedConversationId = selectedConversationId;
 
+            if (selectedConversationId) {
+                sessionStorage.setItem('active_conversation_id', selectedConversationId);
+            } else {
+                sessionStorage.removeItem('active_conversation_id');
+            }
+
             const conversation = state.conversations.find((item) => item.id === selectedConversationId);
             state.messages = conversation ? [ ...conversation.messages ] : [];
+
+            // If selected conversation is not pinned, move it to the top of recent chats
+            if (conversation && !conversation.isPinned) {
+                conversation.updatedAt = new Date().toISOString();
+                const pinned = state.conversations.filter((c) => Boolean(c.isPinned));
+                const nonPinned = state.conversations.filter((c) => !c.isPinned && c.id !== selectedConversationId);
+                state.conversations = [...pinned, conversation, ...nonPinned];
+            }
         },
         clearChatError: (state) => {
+            state.error = null;
+        },
+        startNewChat: (state) => {
+            state.selectedConversationId = null;
+            sessionStorage.removeItem('active_conversation_id');
+            state.messages = [];
             state.error = null;
         },
         resetChat: (state) => {
             state.conversations = [];
             state.selectedConversationId = null;
+            sessionStorage.removeItem('active_conversation_id');
             state.messages = [];
             state.error = null;
         },
@@ -185,12 +216,41 @@ const chatSlice = createSlice({
             .addCase(fetchConversations.fulfilled, (state, action) => {
                 state.isLoadingConversations = false;
                 state.conversations = action.payload || [];
-                state.selectedConversationId = null;
-                state.messages = [];
+
+                // Restore active chat if page refreshed or previously selected
+                const savedActiveId = sessionStorage.getItem('active_conversation_id') || state.selectedConversationId;
+                if (savedActiveId && state.conversations.length > 0) {
+                    const matched = state.conversations.find((c) => c.id === savedActiveId);
+                    if (matched) {
+                        state.selectedConversationId = matched.id;
+                        state.messages = [ ...(matched.messages || []) ];
+                    }
+                }
             })
             .addCase(fetchConversations.rejected, (state, action) => {
                 state.isLoadingConversations = false;
                 state.error = action.payload || action.error.message;
+            })
+            .addCase(fetchSingleConversation.fulfilled, (state, action) => {
+                const fetchedConv = action.payload;
+                if (!fetchedConv) return;
+                state.selectedConversationId = fetchedConv.id;
+                state.messages = [ ...(fetchedConv.messages || []) ];
+                const index = state.conversations.findIndex((c) => c.id === fetchedConv.id);
+                if (index !== -1) {
+                    const updated = {
+                        ...state.conversations[index],
+                        messages: [ ...(fetchedConv.messages || []) ],
+                        updatedAt: fetchedConv.updatedAt || new Date().toISOString(),
+                    };
+                    if (!updated.isPinned) {
+                        const pinned = state.conversations.filter((c) => Boolean(c.isPinned));
+                        const nonPinned = state.conversations.filter((c) => !c.isPinned && c.id !== fetchedConv.id);
+                        state.conversations = [...pinned, updated, ...nonPinned];
+                    } else {
+                        state.conversations[index] = updated;
+                    }
+                }
             })
             .addCase(renameConversation.fulfilled, (state, action) => {
                 const updated = action.payload;
@@ -282,6 +342,7 @@ export const {
     appendAssistantToken,
     selectConversation,
     clearChatError,
+    startNewChat,
     resetChat,
 } = chatSlice.actions;
 

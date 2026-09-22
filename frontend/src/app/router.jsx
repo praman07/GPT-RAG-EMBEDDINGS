@@ -18,6 +18,16 @@ const AuthBootstrap = () => {
       bootstrappedRef.current = true;
       me();
     }
+
+    const rawApiUrl = import.meta.env.VITE_API_URL || '';
+    const apiBase = rawApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+    const healthUrl = `${apiBase}/api/health`;
+
+    const interval = setInterval(() => {
+      fetch(healthUrl, { method: 'GET' }).catch(() => {});
+    }, 10 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, [me]);
 
   return <Outlet />;
@@ -208,17 +218,17 @@ const ChatLayout = () => {
     isLoadingConversations,
     loadConversations,
     chooseConversation,
+    startNewChat,
     reset,
     rename,
     togglePin,
     remove,
   } = useChat();
 
-  const userId = user?.id;
+  const userId = user?.id || user?._id;
 
   useEffect(() => {
     if (userId) {
-      reset();
       loadConversations();
     }
   }, [ userId ]);
@@ -266,7 +276,7 @@ const ChatLayout = () => {
             <div className="p-3">
               <button
                 type="button"
-                onClick={() => reset()}
+                onClick={() => startNewChat()}
                 className="flex w-full items-center justify-between rounded-xl border border-white/15 bg-zinc-900 px-3.5 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-800"
               >
                 <span>New chat</span>
@@ -274,27 +284,64 @@ const ChatLayout = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-1 space-y-1 chat-scrollbar">
-              <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-                Recent chats
-              </p>
-
+            <div className="flex-1 overflow-y-auto px-3 py-1 space-y-4 chat-scrollbar">
               {isLoadingConversations ? (
                 <div className="px-2 py-4 text-xs text-zinc-400">Loading conversations...</div>
               ) : conversations.length === 0 ? (
                 <div className="px-2 py-4 text-xs text-zinc-400">No previous chats</div>
               ) : (
-                conversations.map((item) => (
-                  <SidebarChatItem
-                    key={item.id}
-                    conversation={item}
-                    isSelected={selectedConversationId === item.id}
-                    onSelect={chooseConversation}
-                    onRename={rename}
-                    onTogglePin={togglePin}
-                    onDelete={remove}
-                  />
-                ))
+                <>
+                  {/* Pinned Section - Only Pinned Chats */}
+                  {conversations.filter((c) => Boolean(c.isPinned)).length > 0 ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-400">
+                        <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                        </svg>
+                        <span>Pinned chats ({conversations.filter((c) => Boolean(c.isPinned)).length})</span>
+                      </div>
+
+                      {conversations
+                        .filter((c) => Boolean(c.isPinned))
+                        .map((item) => (
+                          <SidebarChatItem
+                            key={item.id}
+                            conversation={item}
+                            isSelected={selectedConversationId === item.id}
+                            onSelect={chooseConversation}
+                            onRename={rename}
+                            onTogglePin={togglePin}
+                            onDelete={remove}
+                          />
+                        ))}
+                    </div>
+                  ) : null}
+
+                  {/* Recent Section - Only Non-Pinned Chats */}
+                  <div className="space-y-1">
+                    <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">
+                      Recent chats
+                    </p>
+
+                    {conversations.filter((c) => !c.isPinned).length > 0 ? (
+                      conversations
+                        .filter((c) => !c.isPinned)
+                        .map((item) => (
+                          <SidebarChatItem
+                            key={item.id}
+                            conversation={item}
+                            isSelected={selectedConversationId === item.id}
+                            onSelect={chooseConversation}
+                            onRename={rename}
+                            onTogglePin={togglePin}
+                            onDelete={remove}
+                          />
+                        ))
+                    ) : (
+                      <div className="px-2 py-2 text-xs text-zinc-500 italic">No recent chats</div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 

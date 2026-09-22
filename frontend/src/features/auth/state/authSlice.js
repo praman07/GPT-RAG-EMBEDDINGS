@@ -3,6 +3,32 @@ import { loginApi, logoutApi, meApi, registerApi, switchAccountApi } from '../ap
 
 // Local storage helpers for multi-account management
 const ACCOUNTS_STORAGE_KEY = 'override_saved_accounts';
+const ACTIVE_TOKEN_KEY = 'override_active_token';
+
+export const getActiveToken = () => {
+    try {
+        const token = localStorage.getItem(ACTIVE_TOKEN_KEY);
+        if (token) return token;
+        const saved = getSavedAccounts();
+        return saved[0]?.token || null;
+    } catch {
+        return null;
+    }
+};
+
+export const setActiveToken = (token) => {
+    try {
+        if (token) {
+            localStorage.setItem(ACTIVE_TOKEN_KEY, token);
+        } else {
+            localStorage.removeItem(ACTIVE_TOKEN_KEY);
+        }
+    } catch (e) {
+        console.error('Failed to set active token in localStorage', e);
+    }
+};
+
+export const clearActiveToken = () => setActiveToken(null);
 
 export const getSavedAccounts = () => {
     try {
@@ -16,6 +42,7 @@ export const getSavedAccounts = () => {
 const storeAccountInStorage = (user, token) => {
     if (!user || !token) return;
     try {
+        setActiveToken(token);
         const existing = getSavedAccounts();
         const updated = existing.filter((acc) => acc.user.id !== user.id && acc.user.email !== user.email);
         updated.unshift({ user, token, lastActive: Date.now() });
@@ -30,8 +57,14 @@ export const removeAccountFromStorage = (userId) => {
         const existing = getSavedAccounts();
         const updated = existing.filter((acc) => acc.user.id !== userId);
         localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updated));
+        if (updated.length > 0) {
+            setActiveToken(updated[0].token);
+        } else {
+            clearActiveToken();
+        }
         return updated;
     } catch {
+        clearActiveToken();
         return [];
     }
 };
@@ -93,6 +126,15 @@ const authSlice = createSlice({
         prepareAddAccount: (state) => {
             state.user = null;
             state.isAuthenticated = false;
+        },
+        cancelAddAccount: (state) => {
+            const saved = getSavedAccounts();
+            if (saved.length > 0) {
+                state.user = saved[0].user;
+                state.isAuthenticated = true;
+                state.isAuthChecked = true;
+                setActiveToken(saved[0].token);
+            }
         },
         removeSavedAccount: (state, action) => {
             const userId = action.payload;
@@ -183,6 +225,6 @@ const authSlice = createSlice({
     },
 });
 
-export const { clearAuthError, prepareAddAccount, removeSavedAccount, refreshSavedAccounts } = authSlice.actions;
+export const { clearAuthError, prepareAddAccount, cancelAddAccount, removeSavedAccount, refreshSavedAccounts } = authSlice.actions;
 
 export default authSlice.reducer;

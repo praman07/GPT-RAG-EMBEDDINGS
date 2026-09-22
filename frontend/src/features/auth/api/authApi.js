@@ -1,3 +1,5 @@
+import { getActiveToken } from '../state/authSlice.js';
+
 /**
  * Parses API responses and throws normalized JS errors for non-2xx responses.
  *
@@ -5,27 +7,30 @@
  * @returns {Promise<any>}
  */
 const parseResponse = async (response) => {
-    let data;
-    try {
-        data = await response.json();
-    } catch (e) {
-        if (!response.ok) {
-            throw new Error(`Server returned status ${response.status}`);
+    const isJson = response.headers.get('content-type')?.includes('application/json');
+    let data = null;
+
+    if (isJson) {
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
         }
-        throw new Error('Invalid response received from server');
     }
 
     if (!response.ok) {
-        throw new Error(data?.message || 'Request failed');
+        const textError = !isJson ? await response.text().catch(() => '') : null;
+        throw new Error(data?.message || textError || `Request failed (${response.status})`);
     }
 
     return data;
 };
 
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const rawApiUrl = import.meta.env.VITE_API_URL || '';
+const API_BASE = rawApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 /**
- * Executes a cookie-authenticated request to auth endpoints.
+ * Executes an authenticated request to auth endpoints with cookie and Bearer token fallback.
  *
  * @param {string} url
  * @param {string} [method='GET']
@@ -34,11 +39,13 @@ const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
  */
 const authRequest = async (url, method = 'GET', body) => {
     const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    const token = getActiveToken();
     const response = await fetch(fullUrl, {
         method,
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: body ? JSON.stringify(body) : undefined,
     });

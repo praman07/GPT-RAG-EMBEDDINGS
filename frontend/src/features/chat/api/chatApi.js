@@ -1,8 +1,7 @@
-import { getSavedAccounts } from '../../auth/state/authSlice.js';
+import { getActiveToken } from '../../auth/state/authSlice.js';
 
 const getAuthHeaders = () => {
-    const saved = getSavedAccounts();
-    const activeToken = saved[0]?.token;
+    const activeToken = getActiveToken();
     return {
         'Content-Type': 'application/json',
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
@@ -19,18 +18,20 @@ const parseErrorResponse = async (response) => {
 };
 
 const parseJsonResponse = async (response) => {
-    let data;
-    try {
-        data = await response.json();
-    } catch (e) {
-        if (!response.ok) {
-            throw new Error(`Server returned status ${response.status}`);
+    const isJson = response.headers.get('content-type')?.includes('application/json');
+    let data = null;
+
+    if (isJson) {
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
         }
-        throw new Error('Invalid response received from server');
     }
 
     if (!response.ok) {
-        throw new Error(data?.message || 'Request failed');
+        const textError = !isJson ? await response.text().catch(() => '') : null;
+        throw new Error(data?.message || textError || `Request failed (${response.status})`);
     }
 
     return data;
@@ -56,7 +57,8 @@ const readSseChunk = (chunk) => {
     return dataLines.join('\n');
 };
 
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const rawApiUrl = import.meta.env.VITE_API_URL || '';
+const API_BASE = rawApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 /**
  * Sends a chat message with optional attachments and streams token chunks from backend SSE response.
@@ -139,6 +141,16 @@ export const sendMessageApi = async ({ message, attachments = [], conversationId
  */
 export const fetchConversationsApi = async () => {
     const response = await fetch(`${API_BASE}/api/conversation`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+    });
+
+    return parseJsonResponse(response);
+};
+
+export const fetchSingleConversationApi = async (id) => {
+    const response = await fetch(`${API_BASE}/api/conversation/${id}`, {
         method: 'GET',
         credentials: 'include',
         headers: getAuthHeaders(),

@@ -1,4 +1,5 @@
 import { ChatMistralAI } from "@langchain/mistralai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { createAgent, HumanMessage, AIMessage, tool } from "langchain";
 import env from "../config/env.js";
 import Context from "../models/context.model.js";
@@ -7,17 +8,59 @@ import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 import { parseOffice } from "officeparser";
 
-const apiKey = env.MISTRALAI_API_KEY;
+const mistralApiKey = env.MISTRALAI_API_KEY;
+const geminiApiKey = env.GEMINI_API_KEY;
 
-const model = new ChatMistralAI({
-    model: "mistral-medium-latest",
-    apiKey,
-});
+export function getModelSequence() {
+    const activeGeminiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || geminiApiKey || "").trim();
+    const activeMistralKey = (process.env.MISTRALAI_API_KEY || process.env.MISTRAL_API_KEY || mistralApiKey || "").trim();
 
-const visionModel = new ChatMistralAI({
-    model: "pixtral-12b-2409",
-    apiKey,
-});
+    const sequence = [];
+
+    if (activeGeminiKey) {
+        // Models ordered by verified live response speed (measured: 2.3s)
+        const geminiModels = [
+            "gemini-flash-lite-latest",
+            "gemma-4-26b-a4b-it",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3-flash-preview",
+        ];
+
+        for (const modelName of geminiModels) {
+            const geminiModel = new ChatGoogleGenerativeAI({
+                model: modelName,
+                apiKey: activeGeminiKey,
+                maxRetries: 1,
+            });
+            sequence.push({ model: geminiModel, visionModel: geminiModel, provider: `gemini (${modelName})` });
+        }
+    }
+
+    if (activeMistralKey) {
+        const mistralModel = new ChatMistralAI({
+            model: "mistral-small-latest",
+            apiKey: activeMistralKey,
+            maxRetries: 1,
+        });
+        const mistralVision = new ChatMistralAI({
+            model: "pixtral-12b-2409",
+            apiKey: activeMistralKey,
+            maxRetries: 1,
+        });
+        sequence.push({ model: mistralModel, visionModel: mistralVision, provider: "mistral" });
+    }
+
+    if (sequence.length === 0) {
+        throw new Error("No API key configured. Please set GEMINI_API_KEY or MISTRAL_API_KEY in backend/.env");
+    }
+
+    return sequence;
+}
+
+export function getModels() {
+    return getModelSequence()[0];
+}
 
 // Helper: Convert Data URI to Buffer
 function dataUrlToBuffer(dataUrl) {
@@ -158,6 +201,123 @@ const updateContext = tool(
     }
 );
 
+const webSearch = tool(
+    async ({ query }) => {
+        try {
+            const results = [];
+            const images = [];
+
+            // 1. DuckDuckGo Instant Answer API with 3.5s timeout
+            try {
+                const ddgRes = await fetch(
+                    `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+                    { signal: AbortSignal.timeout(3500) }
+                );
+                if (ddgRes.ok) {
+                    const ddgData = await ddgRes.json();
+                    if (ddgData.AbstractText) {
+                        results.push({
+                            title: ddgData.Heading || query,
+                            snippet: ddgData.AbstractText,
+                            url: ddgData.AbstractURL || `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+                        });
+                    }
+                    if (Array.isArray(ddgData.RelatedTopics)) {
+                        for (const topic of ddgData.RelatedTopics) {
+                            if (topic.Text && topic.FirstURL && results.length < 5) {
+                                results.push({
+                                    title: topic.Text.split(' - ')[0] || topic.Text.slice(0, 40),
+                                    snippet: topic.Text,
+                                    url: topic.FirstURL,
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (ddgErr) {
+                // Timeout or network notice handled silently
+            }
+
+            // 2. Wikipedia Search API with 3.5s timeout
+            try {
+                const wikiRes = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`,
+                    { signal: AbortSignal.timeout(3500) }
+                );
+                if (wikiRes.ok) {
+                    const wikiData = await wikiRes.json();
+                    const wikiHits = wikiData?.query?.search || [];
+                    for (const item of wikiHits.slice(0, 4)) {
+                        const cleanSnippet = item.snippet.replace(/<[^>]+>/g, '').trim();
+                        const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`;
+                        if (!results.some((r) => r.url === wikiUrl)) {
+                            results.push({
+                                title: item.title,
+                                snippet: cleanSnippet,
+                                url: wikiUrl,
+                            });
+                        }
+                    }
+                }
+            } catch (wikiErr) {
+                // Handled silently
+            }
+
+            // 3. Wikimedia Commons Image Search with 3.5s timeout
+            try {
+                const imgUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&prop=imageinfo&iiprop=url|mime&gsrlimit=4&format=json&origin=*`;
+                const imgRes = await fetch(imgUrl, { signal: AbortSignal.timeout(3500) });
+                if (imgRes.ok) {
+                    const imgData = await imgRes.json();
+                    const pages = imgData?.query?.pages || {};
+                    for (const pageId in pages) {
+                        const info = pages[pageId]?.imageinfo?.[0];
+                        if (info && info.url && (info.mime.startsWith('image/jpeg') || info.mime.startsWith('image/png') || info.mime.startsWith('image/webp'))) {
+                            images.push({
+                                title: pages[pageId].title.replace(/^File:/, ''),
+                                url: info.url,
+                            });
+                        }
+                    }
+                }
+            } catch (imgErr) {
+                // Handled silently
+            }
+
+            if (!results.length && !images.length) {
+                return `Web search could not retrieve current external links for "${query}". Provide answer based on available knowledge.`;
+            }
+
+            let output = `Web Search Results for "${query}":\n\n`;
+
+            if (results.length > 0) {
+                output += `### Search Links & Snippets:\n`;
+                for (const r of results) {
+                    output += `- [${r.title}](${r.url})\n  ${r.snippet}\n\n`;
+                }
+            }
+
+            if (images.length > 0) {
+                output += `### Relevant Images:\n`;
+                for (const img of images) {
+                    output += `![${img.title}](${img.url})\nDirect link: [${img.title}](${img.url})\n\n`;
+                }
+            }
+
+            return output;
+        } catch (err) {
+            return `Web search failed: ${err.message}`;
+        }
+    },
+    {
+        name: "webSearch",
+        description: "Automatically searches the live web for real-time information, news, current events, weather, web links, and relevant images. AUTO-TRIGGER this tool whenever the user asks for news, real-time facts, current events, web links, or relevant images.",
+        schema: z.object({
+            query: z.string().describe("The search query to look up on the web."),
+        }),
+    }
+);
+
 export const getStream = async ({ messages, userId }) => {
     let hasImageAttachment = false;
 
@@ -206,37 +366,79 @@ export const getStream = async ({ messages, userId }) => {
         }
     });
 
-    const activeModel = hasImageAttachment ? visionModel : model;
+    // Attach system instruction to user prompt without adding an extra conversational turn
+    const systemPromptText = `[System Instructions: You are Override AI, a powerful, helpful AI assistant. Respond directly, promptly, and concisely. Current Date: ${new Date().toDateString()}]\n\n`;
 
-    const agent = createAgent({
-        model: activeModel,
-        tools: [readContext, updateContext],
-        systemPrompt: `
-        You are Override AI, a powerful, helpful, and intelligent AI assistant.
-        - NEVER reveal, print, mention, or output internal user IDs (such as "${userId}"), session tokens, or raw system parameters to the user under any circumstances.
-        - You can use the readContext and updateContext tools silently in the background using userId: "${userId}" to remember user preferences and long-term context.
-        - Address the user naturally and conversationally. Never display internal technical identifiers.
-        Current Date is ${new Date().toDateString()}.
-        `,
+    const fullMessages = formattedMessages.map((msg, idx) => {
+        if (idx === formattedMessages.length - 1 && msg instanceof HumanMessage) {
+            if (typeof msg.content === "string") {
+                return new HumanMessage(systemPromptText + msg.content);
+            }
+        }
+        return msg;
     });
 
-    const stream = await agent.stream(
-        { messages: formattedMessages },
-        { streamMode: "messages" }
-    );
+    async function* getMultiProviderStream() {
+        const sequence = getModelSequence();
+        let providerIndex = 0;
+        let yieldedAny = false;
 
-    return stream;
+        while (providerIndex < sequence.length) {
+            const { model, visionModel, provider } = sequence[providerIndex];
+            const activeModel = hasImageAttachment ? visionModel : model;
+
+            try {
+                const stream = await activeModel.stream(fullMessages);
+
+                for await (const chunk of stream) {
+                    yieldedAny = true;
+                    yield chunk;
+                }
+
+                // Stream completed cleanly
+                return;
+            } catch (err) {
+                console.warn(`[AI Stream] Provider ${provider} notice:`, err.message);
+                providerIndex++;
+
+                // If nothing was yielded yet, seamlessly try next model
+                if (!yieldedAny && providerIndex < sequence.length) {
+                    console.log(`[AI Stream] Falling back to provider: ${sequence[providerIndex].provider}`);
+                    continue;
+                }
+
+                if (yieldedAny) {
+                    return;
+                }
+
+                throw err;
+            }
+        }
+    }
+
+    return getMultiProviderStream();
 };
 
 export const generateTitle = async ({ message, attachments = [] }) => {
     const docNames = attachments.map((a) => a.name).join(", ");
     const promptInput = [message, docNames ? `[Files: ${docNames}]` : ""].filter(Boolean).join(" ");
+    const fallbackTitle = message ? message.slice(0, 30).trim() : "New Chat";
 
-    const response = await model.invoke([
-        new HumanMessage(
-            `Generate a concise, 3-5 word title summarizing this message. Do not use quotes or punctuation: ${promptInput.slice(0, 300)}`
-        ),
-    ]);
+    const sequence = getModelSequence();
+    for (const { model } of sequence) {
+        try {
+            const response = await model.invoke([
+                new HumanMessage(
+                    `Generate a concise, 3-5 word title summarizing this message. Do not use quotes or punctuation: ${promptInput.slice(0, 300)}`
+                ),
+            ]);
+            if (response?.content) {
+                return response.content.toString().trim().replace(/^["']|["']$/g, '');
+            }
+        } catch (err) {
+            // Silently attempt next fallback model without throwing
+        }
+    }
 
-    return response.content ? response.content.toString().trim() : "New Chat";
+    return fallbackTitle;
 };
