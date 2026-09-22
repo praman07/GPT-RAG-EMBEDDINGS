@@ -9,7 +9,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error, isAuthenticated, clearError, login, savedAccounts, cancelAddAccount } = useAuth();
+  const { loading, error, isAuthenticated, clearError, login, savedAccounts, isAddingAccount, cancelAddAccount } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -41,7 +41,7 @@ const Login = () => {
 
   return (
     <section className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-950 p-8 shadow-2xl shadow-black/50">
-      {savedAccounts && savedAccounts.length > 0 ? (
+      {isAddingAccount && savedAccounts && savedAccounts.length > 0 ? (
         <button
           type="button"
           onClick={handleCancelAddAccount}
