@@ -75,6 +75,7 @@ const initialState = {
     error: null,
     isAuthenticated: false,
     isAuthChecked: false,
+    isAddingAccount: false,
     savedAccounts: getSavedAccounts(),
 };
 
@@ -126,8 +127,10 @@ const authSlice = createSlice({
         prepareAddAccount: (state) => {
             state.user = null;
             state.isAuthenticated = false;
+            state.isAddingAccount = true;
         },
         cancelAddAccount: (state) => {
+            state.isAddingAccount = false;
             const saved = getSavedAccounts();
             if (saved.length > 0) {
                 state.user = saved[0].user;
@@ -155,6 +158,7 @@ const authSlice = createSlice({
                 state.user = action.payload.user;
                 state.isAuthenticated = true;
                 state.isAuthChecked = true;
+                state.isAddingAccount = false;
                 storeAccountInStorage(action.payload.user, action.payload.token);
                 state.savedAccounts = getSavedAccounts();
             })
@@ -172,6 +176,7 @@ const authSlice = createSlice({
                 state.user = action.payload.user;
                 state.isAuthenticated = true;
                 state.isAuthChecked = true;
+                state.isAddingAccount = false;
                 storeAccountInStorage(action.payload.user, action.payload.token);
                 state.savedAccounts = getSavedAccounts();
             })

@@ -15,7 +15,7 @@ import {
 
 const useAuth = () => {
     const dispatch = useDispatch();
-    const { user, loading, error, isAuthenticated, isAuthChecked, savedAccounts } = useSelector((state) => state.auth);
+    const { user, loading, error, isAuthenticated, isAuthChecked, isAddingAccount, savedAccounts } = useSelector((state) => state.auth);
 
     const register = useCallback((credentials) => dispatch(registerUser(credentials)), [dispatch]);
 
@@ -43,6 +43,7 @@ const useAuth = () => {
         error,
         isAuthenticated,
         isAuthChecked,
+        isAddingAccount,
         savedAccounts,
         register,
         login,
